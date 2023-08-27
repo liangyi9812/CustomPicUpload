@@ -1,6 +1,8 @@
 const axios = require('axios');
 const formidable = require('formidable');
+const fs = require('fs')
 const moment = require('moment');
+const crypto = require('crypto');
 
 require('dotenv').config();
 moment.locale('zh-cn');
@@ -9,16 +11,15 @@ const config = {
     cloudName: process.env.CLOUD_NAME,
     uploadPreset: process.env.UPLOAD_PRESET,
     apiKey: process.env.API_KEY,
-    signature: process.env.SIGNATURE
+    apiSecret: process.env.API_SECRET
 }
 
 module.exports = async (req, res) => {
     try {
-
         // 接收处理MWeb发送过来的post请求
         const form = new formidable.IncomingForm();
 
-        form.parse(req, async (err, { }, files) => {
+        form.parse(req, async (err, fields, files) => {
             // 错误处理
             if (err) {
                 const errorMsg = 'An error occurred in form parse: ' + err;
@@ -27,32 +28,35 @@ module.exports = async (req, res) => {
                 return;
             }
             // 上传的原始文件
-            const originUploadedFile = files.file;
+            const originUploadedFile = files.file[0];
             const now = moment();
-            const publicID = now.format('/YYYY/MM/DD/') + analyzeUploadFileName(originUploadedFile.name, now)
+            const publicID = now.format('/YYYY/MM/DD/') + analyzeUploadFileName(originUploadedFile.originalFilename, now)
 
             // 创建一个 FormData 实例
             const formData = new FormData();
-            formData.append('file', originUploadedFile, {
-                upload_preset: config.uploadPreset,
-                api_key: config.apiKey,
-                signature: config.signature,
-                timestamp: moment().valueOf(),
-                public_id: publicID
-            });
+            formData.append('upload_preset', config.uploadPreset)
+            formData.append('api_key', config.apiKey)
+            formData.append('public_id', publicID)
+            formData.append('file', new Blob(fs.readFileSync(originUploadedFile.filepath), { type: 'application/octet-stream' }));
 
             // 将处理后数据发送给Couldinary
-            const cloudinaryRes = await axios.post(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, formData, {
-                headers: {
-                    ...formData.getHeaders() // 设置适当的请求头，包括 Content-Type
-                }
+
+            fetch(`https://api.cloudinary.com/v1_1/${config.cloudName}/auto/upload`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(cloudinaryRes => {
+                // 返回 secure_url -> MWeb
+                res.status(200).json({ secure_url: cloudinaryRes.secure_url });
+            })
+            .catch(error => {
+                console.error('An error occurred during cloudinary post:', error);
+                res.status(500).json({ error: error.message });
             });
-            
-            // 返回secure_url -> MWeb
-            res.status(200).json({ secure_url: cloudinaryRes.data['secure_url'] });
         });
     } catch (error) {
-        const errorMsg = 'An error occurred: ' + err;
+        const errorMsg = 'An error occurred: ' + error;
         console.error('error: ', errorMsg);
         res.status(500).json({ error: errorMsg });
     }
@@ -62,7 +66,7 @@ function analyzeUploadFileName(originFileName, now) {
     function randomString(length) {
         const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
         let result = '';
-    
+
         while (result.length < length) {
             const randomBytes = crypto.randomBytes(length);
             for (let i = 0; i < randomBytes.length && result.length < length; i++) {
@@ -70,7 +74,7 @@ function analyzeUploadFileName(originFileName, now) {
                 result += characters.charAt(randomIndex);
             }
         }
-    
+
         return result;
     }
     const parts = originFileName.split('.');
