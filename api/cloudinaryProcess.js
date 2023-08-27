@@ -30,7 +30,6 @@ module.exports = async (req, res) => {
             const originUploadedFile = files.file[0];
 
             const now = DateTime.now().setZone(timeZone);
-
             const publicID = now.toFormat('/yyyy/MM/dd/') + analyzeUploadFileName(originUploadedFile.originalFilename, now)
 
             // 创建一个 FormData 实例
@@ -38,11 +37,9 @@ module.exports = async (req, res) => {
             formData.append('upload_preset', config.uploadPreset)
             formData.append('api_key', config.apiKey)
             formData.append('public_id', publicID)
-            formData.append('file', new File([fs.readFileSync(originUploadedFile.filepath)], originUploadedFile.originalFilename, { type: 'application/octet-stream' }));
-        
+            formData.append('file', fs.createReadStream(originUploadedFile.filepath));
 
             // 将处理后数据发送给Couldinary
-
             fetch(`https://api.cloudinary.com/v1_1/${config.cloudName}/image/upload`, {
                 method: 'POST',
                 body: formData
