@@ -1,4 +1,3 @@
-const fetch = require('node-fetch');
 const formidable = require('formidable');
 const fs = require('fs');
 const { DateTime } = require('luxon');
