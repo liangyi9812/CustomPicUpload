@@ -1,0 +1,14 @@
+{
+  "name": "CustomPicUpload",
+  "version": "1.0.0",
+  "description": "upload trasform",
+  "main": "api/index.js",
+  "author": "liangyi",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.4.0",
+    "dotenv": "^16.3.1",
+    "formidable": "^3.5.1",
+    "moment": "^2.29.4"
+  }
+}
