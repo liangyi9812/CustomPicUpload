@@ -38,11 +38,11 @@ module.exports = async (req, res) => {
             formData.append('upload_preset', config.uploadPreset)
             formData.append('api_key', config.apiKey)
             formData.append('public_id', publicID)
-            formData.append('file', new Blob(fs.readFileSync(originUploadedFile.filepath), { type: 'application/octet-stream' }));
+            formData.append('file', new Blob([fs.readFileSync(originUploadedFile.filepath)]));
 
             // 将处理后数据发送给Couldinary
 
-            fetch(`https://api.cloudinary.com/v1_1/${config.cloudName}/image/upload`, {
+            fetch(`https://api.cloudinary.com/v1_1/${config.cloudName}/auto/upload`, {
                 method: 'POST',
                 body: formData
             })
