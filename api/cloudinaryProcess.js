@@ -1,12 +1,12 @@
-const axios = require('axios');
+const fetch = require('node-fetch');
 const formidable = require('formidable');
-const fs = require('fs')
-const moment = require('moment');
+const fs = require('fs');
+const { DateTime } = require('luxon');
 const crypto = require('crypto');
 
 require('dotenv').config();
-moment.locale('zh-cn');
 
+const timeZone = 'Asia/Shanghai';
 const config = {
     cloudName: process.env.CLOUD_NAME,
     uploadPreset: process.env.UPLOAD_PRESET,
@@ -29,8 +29,10 @@ module.exports = async (req, res) => {
             }
             // 上传的原始文件
             const originUploadedFile = files.file[0];
-            const now = moment();
-            const publicID = now.format('/YYYY/MM/DD/') + analyzeUploadFileName(originUploadedFile.originalFilename, now)
+
+            const now = DateTime.now().setZone(timeZone);
+
+            const publicID = now.toFormat('/yyyy/MM/dd/') + analyzeUploadFileName(originUploadedFile.originalFilename, now)
 
             // 创建一个 FormData 实例
             const formData = new FormData();
@@ -83,5 +85,5 @@ function analyzeUploadFileName(originFileName, now) {
     }
     const fileName = parts[0];
     const fileExtension = parts[1];
-    return `${fileName}_${now.format('YYYYMMDD')}_${randomString(6)}.${fileExtension}`;
+    return `${fileName}_${now.toFormat('yyyyMMdd')}_${randomString(6)}.${fileExtension}`;
 }
