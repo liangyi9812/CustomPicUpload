@@ -1,0 +1,8 @@
+{
+    "cleanUrls": true,
+    "functions": {
+        "api/cloudinaryProcess.js": {
+            "maxDuration": 10
+        }
+    }
+}
