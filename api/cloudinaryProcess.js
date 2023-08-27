@@ -42,14 +42,14 @@ module.exports = async (req, res) => {
 
             // 将处理后数据发送给Couldinary
 
-            fetch(`https://api.cloudinary.com/v1_1/${config.cloudName}/auto/upload`, {
+            fetch(`https://api.cloudinary.com/v1_1/${config.cloudName}/image/upload`, {
                 method: 'POST',
                 body: formData
             })
             .then(response => response.json())
             .then(cloudinaryRes => {
                 // 返回 secure_url -> MWeb
-                res.status(200).json({ secure_url: cloudinaryRes.secure_url });
+                res.status(200).json(cloudinaryRes);
             })
             .catch(error => {
                 console.error('An error occurred during cloudinary post:', error);
