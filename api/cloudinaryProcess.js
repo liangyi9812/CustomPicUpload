@@ -60,7 +60,7 @@ module.exports = async (req, res) => {
             }
 
             // build cloudinary folder path
-            const publicID = now.toFormat('/yyyy/MM/dd/') + uploadFile.filename
+            const publicID = now.toFormat('/yyyy/MM/dd/') + path.parse(uploadFile.filename).name
 
             // build signature
             const timestamp = Math.round(new Date().getTime() / 1000)
@@ -123,5 +123,8 @@ function analyzeUploadFileName(originFileName, now) {
 
         return result;
     }
-    return `${path.parse(originFileName).name}_${now.toFormat('yyyyMMdd')}_${randomString(6)}`;
+    const pathParse = path.parse(originFileName)
+    const fileName = pathParse.name;
+    const fileExtension = pathParse.ext;
+    return `${fileName}_${now.toFormat('yyyyMMdd')}_${randomString(6)}${fileExtension}`;
 }
