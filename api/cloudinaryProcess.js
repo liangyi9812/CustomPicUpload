@@ -17,27 +17,45 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 const config = {
-    cloudName: process.env.CLOUD_NAME,
-    uploadPreset: process.env.UPLOAD_PRESET,
-    apiKey: process.env.API_KEY,
-    apiSecret: process.env.API_SECRET
+    cloudName: process.env.CLOUD_NAME || undefined,
+    uploadPreset: process.env.UPLOAD_PRESET || undefined,
+    apiKey: process.env.API_KEY || undefined,
+    apiSecret: process.env.API_SECRET || undefined,
+    uploadKey: process.env.UPLOAD_KEY || undefined
 }
 
 module.exports = async (req, res) => {
     try {
+
+        // 验证配置值是否为空
+        if (
+            !config.cloudName ||
+            !config.uploadPreset ||
+            !config.apiKey ||
+            !config.apiSecret ||
+            !config.uploadKey
+        ) {
+            throw new Error('Configuration values cannot be undefined or empty.');
+        }
+
         upload.single('file')(req, res, (err) => {
             if (err) {
-                return res.status(400).json({ 
+                return res.status(400).json({
                     state: 'upload parse',
                     error: err
-                 });
+                });
+            } else if (!req.body.uploadKey || req.body.uploadKey != config.uploadKey) {
+                return res.status(400).json({
+                    state: 'uploadKey',
+                    error: 'wrong uploadKey'
+                });
             }
             const uploadFile = req.file
             if (!uploadFile) {
-                return res.status(400).json({ 
+                return res.status(400).json({
                     state: 'file uploaded',
                     error: 'no file uploaded'
-                 });
+                });
             }
 
             // build cloudinary folder path
@@ -81,10 +99,10 @@ module.exports = async (req, res) => {
                 });
         });
     } catch (error) {
-        res.status(500).json({ 
+        res.status(500).json({
             state: 'An error occurred during try block',
-            error: error
-         });
+            error: error.message
+        });
     }
 };
 
