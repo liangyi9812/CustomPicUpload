@@ -1,11 +1,21 @@
-const formidable = require('formidable');
-const fs = require('fs');
-const { DateTime } = require('luxon');
-const crypto = require('crypto');
-
 require('dotenv').config();
 
+const fs = require('fs');
+const crypto = require('crypto');
+
+const { DateTime } = require('luxon');
+const multer = require('multer');
+const axios = require('axios');
+const FormData = require('form-data');
+
 const timeZone = 'Asia/Shanghai';
+const now = DateTime.now().setZone(timeZone);
+
+const storage = multer.diskStorage({
+    filename: (req, file, callback) => callback(null, analyzeUploadFileName(file.originalname, now))
+});
+const upload = multer({ storage });
+
 const config = {
     cloudName: process.env.CLOUD_NAME,
     uploadPreset: process.env.UPLOAD_PRESET,
@@ -15,51 +25,69 @@ const config = {
 
 module.exports = async (req, res) => {
     try {
-        // 接收处理MWeb发送过来的post请求
-        const form = new formidable.IncomingForm();
-
-        form.parse(req, async (err, fields, files) => {
-            // 错误处理
+        upload.single('file')(req, res, (err) => {
             if (err) {
-                const errorMsg = 'An error occurred in form parse: ' + err;
-                console.error('error in form parse: ', errorMsg);
-                res.status(500).json({ error: errorMsg });
-                return;
+                return res.status(400).json({ 
+                    state: 'upload parse',
+                    error: err
+                 });
             }
-            // 上传的原始文件
-            const originUploadedFile = files.file[0];
+            const uploadFile = req.file
+            if (!uploadFile) {
+                return res.status(400).json({ 
+                    state: 'file uploaded',
+                    error: 'no file uploaded'
+                 });
+            }
 
-            const now = DateTime.now().setZone(timeZone);
-            const publicID = now.toFormat('/yyyy/MM/dd/') + analyzeUploadFileName(originUploadedFile.originalFilename, now)
+            // build cloudinary folder path
+            const publicID = now.toFormat('/yyyy/MM/dd/') + uploadFile.filename
 
-            // 创建一个 FormData 实例
+            // build signature
+            const timestamp = Math.round(new Date().getTime() / 1000)
+            const paramsToSign = {
+                timestamp: timestamp, // current timestamp
+                upload_preset: config.uploadPreset,
+                public_id: publicID
+            };
+            const serialString = Object.keys(paramsToSign).sort().map(key => key + '=' + paramsToSign[key]).join('&') + config.apiSecret
+            console.log('serialString: ' + serialString);
+            const signature = crypto
+                .createHash('sha1')
+                .update(serialString)
+                .digest('hex');
+
+            // sign upload  
             const formData = new FormData();
+            formData.append('file', fs.createReadStream(uploadFile.path));
             formData.append('upload_preset', config.uploadPreset)
-            formData.append('api_key', config.apiKey)
-            formData.append('public_id', publicID)
-            formData.append('file', fs.createReadStream(originUploadedFile.filepath), originUploadedFile.originalFilename);
+            formData.append('api_key', config.apiKey);
+            formData.append('signature', signature);
+            formData.append('timestamp', timestamp)
+            formData.append('public_id', publicID);
 
-            // 将处理后数据发送给Couldinary
-            fetch(`https://api.cloudinary.com/v1_1/${config.cloudName}/image/upload`, {
+            // send request
+            axios({
                 method: 'POST',
-                body: formData
+                url: `https://api.cloudinary.com/v1_1/${config.cloudName}/auto/upload`,
+                data: formData
             })
-            .then(response => response.json())
-            .then(cloudinaryRes => {
-                // 返回 secure_url -> MWeb
-                res.status(200).json(cloudinaryRes);
-            })
-            .catch(error => {
-                console.error('An error occurred during cloudinary post:', error);
-                res.status(500).json({ error: error.message });
-            });
+                .then(response => res.status(200).json(response.data))
+                .catch(error => {
+                    res.status(500).json({
+                        state: 'An error occurred during cloudinary request',
+                        error: error
+                    });
+                });
         });
     } catch (error) {
-        const errorMsg = 'An error occurred: ' + error;
-        console.error('error: ', errorMsg);
-        res.status(500).json({ error: errorMsg });
+        res.status(500).json({ 
+            state: 'An error occurred during try block',
+            error: error
+         });
     }
 };
+
 
 function analyzeUploadFileName(originFileName, now) {
     function randomString(length) {
