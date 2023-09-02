@@ -1,6 +1,7 @@
 require('dotenv').config();
 
 const fs = require('fs');
+const path = require('path');
 const crypto = require('crypto');
 
 const { DateTime } = require('luxon');
@@ -122,11 +123,5 @@ function analyzeUploadFileName(originFileName, now) {
 
         return result;
     }
-    const parts = originFileName.split('.');
-    if (parts.length !== 2) {
-        throw 'Image fileName analyze fail.' + originFileName;
-    }
-    const fileName = parts[0];
-    const fileExtension = parts[1];
-    return `${fileName}_${now.toFormat('yyyyMMdd')}_${randomString(6)}.${fileExtension}`;
+    return `${path.parse(originFileName).name}_${now.toFormat('yyyyMMdd')}_${randomString(6)}`;
 }
