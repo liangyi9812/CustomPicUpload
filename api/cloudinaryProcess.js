@@ -100,6 +100,7 @@ module.exports = async (req, res) => {
                 });
         });
     } catch (error) {
+        console.error(JSON.stringify(error))
         res.status(500).json({
             state: 'An error occurred during try block',
             error: error.message
